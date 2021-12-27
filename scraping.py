@@ -10,17 +10,17 @@ def scrape_all():
     # Initiate headless driver for deployment
     executable_path={'executable_path':ChromeDriverManager().install()}
     browser= Browser('chrome',**executable_path, headless=True)
-    
     news_title, news_p = mars_news(browser)
-
+    #hemisphere_image_urls = hemisphere_data(browser)
     # Run all scraping functions and store results in a dictionary
     data = {
         "news_title": news_title,
         "news_paragraph": news_p,
         "featured_image": featured_image(browser),
         "facts": mars_facts(),
+        "hemispheres": hemisphere_data(browser),
         "last_modified": dt.datetime.now()
-    }
+        }
     # Stop webdriver and return data
     browser.quit()
     return data
@@ -84,6 +84,41 @@ def mars_facts():
     df.set_index('description', inplace=True)
     # Convert dataframe into HTML format, add bootstrap
     return df.to_html()
+
+def hemisphere_data(browser):
+    hemisphere_image_urls=[]
+    url = 'https://marshemispheres.com/'
+    browser.visit(url)
+    try:
+        for i in range(4):
+            hemispheres={}
+            html = browser.html
+            img_soup = soup(html, 'html.parser')
+            # Find image title
+            img_elem = img_soup.select_one('div.collapsible.results')
+            title = img_elem.find_all('h3')[i].text
+            # Find the hemisphere link
+            find_narrow = img_soup.select('div.description')[i]
+            hem_url_rel = find_narrow.find_all('a', class_='itemLink product-item')[0].get('href')
+            # Make full url
+            hem_url = f'https://marshemispheres.com/{hem_url_rel}'
+            # Visit the other link
+            browser.visit(hem_url)
+            html = browser.html
+            img_soup = soup(html, 'html.parser')
+            # get the image link
+            img_narrow = img_soup.select_one('div.wrapper')
+            img_href = img_narrow.find('a', target='_blank').get('href')
+            img_url = f'https://marshemispheres.com/{img_href}'
+            # Add image and title pairs to dictionary
+            hemispheres["image_url"]=img_url
+            hemispheres["title"]=title
+            hemisphere_image_urls.append(hemispheres)
+            i += 1
+            browser.back()
+        return hemisphere_image_urls
+    except BaseException:
+        return None
 
 if __name__ == "__main__":
 
